@@ -159,6 +159,7 @@ namespace Taichi.Asset.Internal
             {
                 this.request = new AsyncAssetOperation(this.package, this.asset, this.type);
             }
+
             return true;
         }
 
