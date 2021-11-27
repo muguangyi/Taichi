@@ -80,10 +80,65 @@ namespace Taichi.Asset.Internal
 
     internal sealed class AsyncBundleAsset : Async<IAsset>
     {
+        private interface IAssetOperation
+        {
+            bool IsCompleted { get; }
+            IAsset GetAsset();
+        }
+
+        private class SyncAssetOperation : IAssetOperation
+        {
+            private readonly IAsset asset = null;
+
+            public SyncAssetOperation(BundlePackage package, string asset, Type type)
+            {
+                this.asset = new Asset(package.LoadAsset(asset, type), package);
+            }
+
+            public bool IsCompleted => true;
+
+            public IAsset GetAsset()
+            {
+                return this.asset;
+            }
+        }
+
+        private class AsyncAssetOperation : IAssetOperation
+        {
+            private readonly BundlePackage package = null;
+            private readonly AsyncOperation operation = null;
+            private readonly string asset = null;
+            private readonly Type type = null;
+
+            public AsyncAssetOperation(BundlePackage package, string asset, Type type)
+            {
+                this.package = package;
+                this.operation = package.LoadAssetAsync(asset, type);
+                this.asset = asset;
+                this.type = type;
+            }
+
+            public bool IsCompleted => this.operation.isDone;
+
+            public IAsset GetAsset()
+            {
+                if (this.type == typeof(Scene))
+                {
+                    return new SceneAsset(SceneManager.GetSceneByName(this.asset), this.package);
+                }
+                else if (this.operation is AssetBundleRequest req)
+                {
+                    return new Asset(req.asset, this.package);
+                }
+
+                return null;
+            }
+        }
+
         private readonly BundlePackage package = null;
         private readonly string asset = null;
         private readonly Type type = null;
-        private AsyncOperation request = null;
+        private IAssetOperation request = null;
 
         public AsyncBundleAsset(BundlePackage package, string asset, Type type)
         {
@@ -96,24 +151,24 @@ namespace Taichi.Asset.Internal
 
         protected override bool OnStart()
         {
-            this.request = this.package.LoadAssetAsync(this.asset, this.type);
+            if (this.type == typeof(GameObject))
+            {
+                this.request = new SyncAssetOperation(this.package, this.asset, this.type);
+            }
+            else
+            {
+                this.request = new AsyncAssetOperation(this.package, this.asset, this.type);
+            }
             return true;
         }
 
         protected override AsyncState OnUpdate()
         {
-            if (this.request.isDone)
+            if (this.request.IsCompleted)
             {
-                if (this.type == typeof(Scene))
-                {
-                    SetResult(new SceneAsset(SceneManager.GetSceneByName(this.asset), this.package));
-                }
-                else if (this.request is AssetBundleRequest req)
-                {
-                    SetResult(new Asset(req.asset, this.package));
-                }
-
+                SetResult(this.request.GetAsset());
                 this.package.Release();
+
                 return AsyncState.Succeed;
             }
 
