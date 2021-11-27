@@ -183,7 +183,6 @@ namespace Taichi.Asset.Internal
         private readonly string asset = null;
         private readonly Type type = null;
         private AssetBundleRequest request = null;
-        private IAsset result = null;
 
         public AsyncSheetBundleAsset(SheetPackage package, string asset, Type type)
         {
@@ -204,7 +203,7 @@ namespace Taichi.Asset.Internal
         {
             if (this.request.isDone)
             {
-                SetResult(this.result = new Asset(this.request.allAssets?[0], this.package));
+                SetResult(new Asset(this.request.allAssets?[0], this.package));
 
                 this.package.Release();
                 return AsyncState.Succeed;
