@@ -87,6 +87,7 @@ namespace Taichi.Async
                 if (Interlocked.Decrement(ref _wait) == 0)
                 {
                     Resume();
+                    Update(); // Update status in the same frame.
                 }
             };
 

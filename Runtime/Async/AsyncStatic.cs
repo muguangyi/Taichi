@@ -30,12 +30,13 @@ namespace Taichi.Async
 
         private sealed class AsyncTask : Async
         {
+            private static readonly TaskScheduler taskScheduler = new AsyncScheduler();
             private readonly CancellationTokenSource cancelSource = new CancellationTokenSource();
             private readonly Task task = null;
 
             public AsyncTask(Func<Task> func)
             {
-                this.task = Task.Factory.StartNew(func, this.cancelSource.Token).Unwrap();
+                this.task = Task.Factory.StartNew(func, this.cancelSource.Token, TaskCreationOptions.None, taskScheduler).Unwrap();
             }
 
             protected override AsyncState OnUpdate()
@@ -92,17 +93,13 @@ namespace Taichi.Async
 
         private sealed class AsyncTask : Async<TResult>
         {
+            private static readonly TaskScheduler taskScheduler = new AsyncScheduler();
             private readonly CancellationTokenSource cancelSource = new CancellationTokenSource();
             private readonly Task<TResult> task = null;
 
             public AsyncTask(Func<Task<TResult>> func)
             {
-                this.task = Task.Factory.StartNew(func, this.cancelSource.Token).Unwrap();
-            }
-
-            public new TResult GetResult()
-            {
-                return this.task.Result;
+                this.task = Task.Factory.StartNew(func, this.cancelSource.Token, TaskCreationOptions.None, taskScheduler).Unwrap();
             }
 
             protected override AsyncState OnUpdate()
@@ -114,6 +111,7 @@ namespace Taichi.Async
                         Log.Fatal(this.task.Exception.InnerException?.Message);
                     }
 
+                    SetResult(this.task.Result);
                     return AsyncState.Succeed;
                 }
 
